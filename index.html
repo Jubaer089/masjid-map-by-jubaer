@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Simple Masjid Food Map</title>
+  <title>Bangladesh Masjid Food Map</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
   <style>
     body { margin: 0; font-family: Arial, sans-serif; }
@@ -19,12 +19,13 @@
       box-shadow: 0 2px 6px rgba(0,0,0,0.2);
       z-index: 1000;
     }
-    input { padding: 6px; width: 200px; }
+    input, button { padding: 6px; }
   </style>
 </head>
 <body>
   <div class="searchBox">
-    <input id="search" placeholder="Search masjid name" />
+    <input id="search" placeholder="Search any place in Bangladesh" />
+    <button onclick="searchPlace()">Go</button>
   </div>
 
   <div id="map"></div>
@@ -69,14 +70,21 @@
       alert('Saved');
     }
 
-    document.getElementById('search').addEventListener('input', e => {
-      const term = e.target.value.toLowerCase();
-      masjids.forEach(m => {
-        if (m.name.toLowerCase().includes(term)) {
-          map.setView([m.lat, m.lng], 13);
-        }
-      });
-    });
+    function searchPlace() {
+      const query = document.getElementById('search').value + ', Bangladesh';
+      fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}`)
+        .then(response => response.json())
+        .then(data => {
+          if (data && data.length > 0) {
+            const place = data[0];
+            map.setView([place.lat, place.lon], 13);
+          } else {
+            alert('Place not found');
+          }
+        })
+        .catch(err => alert('Error searching place'));
+    }
   </script>
 </body>
 </html>
+
