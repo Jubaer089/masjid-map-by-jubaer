@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Simple Masjid Food Map</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+  <style>
+    body { margin: 0; font-family: Arial, sans-serif; }
+    #map { height: 100vh; }
+    .searchBox {
+      position: absolute;
+      top: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: white;
+      padding: 8px;
+      border-radius: 8px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+      z-index: 1000;
+    }
+    input { padding: 6px; width: 200px; }
+  </style>
+</head>
+<body>
+  <div class="searchBox">
+    <input id="search" placeholder="Search masjid name" />
+  </div>
+
+  <div id="map"></div>
+
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+  <script>
+    const map = L.map('map').setView([23.6850, 90.3563], 7);
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19
+    }).addTo(map);
+
+    const masjids = [
+      { name: 'Baitul Mukarram', lat: 23.7286, lng: 90.4106 },
+      { name: 'Chittagong Jame Masjid', lat: 22.3569, lng: 91.7832 },
+      { name: 'Sylhet Shahi Eidgah', lat: 24.8949, lng: 91.8687 }
+    ];
+
+    function getData() {
+      return JSON.parse(localStorage.getItem('masjidData') || '{}');
+    }
+
+    function saveData(data) {
+      localStorage.setItem('masjidData', JSON.stringify(data));
+    }
+
+    masjids.forEach(m => {
+      const marker = L.marker([m.lat, m.lng]).addTo(map);
+      marker.bindPopup(`<b>${m.name}</b><br><button onclick="addInfo('${m.name}')">+ Add Info</button>`);
+    });
+
+    function addInfo(name) {
+      const date = prompt('Date:');
+      const food = prompt('Food (biryani/tehari + chicken/beef):');
+      const comment = prompt('Comment:');
+
+      const data = getData();
+      if (!data[name]) data[name] = [];
+      data[name].push({ date, food, comment });
+      saveData(data);
+
+      alert('Saved');
+    }
+
+    document.getElementById('search').addEventListener('input', e => {
+      const term = e.target.value.toLowerCase();
+      masjids.forEach(m => {
+        if (m.name.toLowerCase().includes(term)) {
+          map.setView([m.lat, m.lng], 13);
+        }
+      });
+    });
+  </script>
+</body>
+</html>
