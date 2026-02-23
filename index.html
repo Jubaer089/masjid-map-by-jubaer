@@ -1,147 +1,112 @@
 <!DOCTYPE html>
-<html>
+<html lang="bn">
 <head>
   <meta charset="UTF-8">
-  <title>Iftar Finder</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ইফতার তথ্য</title>
   <style>
     body {
-      margin:0;
+      margin: 0;
       font-family: Arial, sans-serif;
-      background:url('Ramadan Mubarak.png') no-repeat center center fixed;
-      background-size:cover;
-      color:white;
+      background: url('ramadan.jpg') no-repeat center center fixed;
+      background-size: cover;
+      color: white;
+      text-align: center;
     }
     .topbar {
-      position:fixed;
-      top:10px;
-      right:10px;
-      display:flex;
-      gap:10px;
+      position: fixed;
+      top: 10px;
+      right: 10px;
+      display: flex;
+      gap: 10px;
     }
     button {
-      padding:10px;
-      font-size:16px;
-      cursor:pointer;
+      padding: 10px 14px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 16px;
     }
     .panel {
-      margin-top:80px;
-      padding:20px;
-      background:rgba(0,0,0,0.6);
-      max-width:600px;
+      background: rgba(0,0,0,0.7);
+      padding: 20px;
+      border-radius: 12px;
+      margin: 80px auto;
+      width: 90%;
+      max-width: 400px;
+      display: none;
     }
-    input {display:block; margin:5px 0; padding:8px; width:100%;}
-    .result {margin-top:10px; padding:10px; background:rgba(255,255,255,0.1);} 
+    input {
+      width: 100%;
+      padding: 8px;
+      margin: 6px 0;
+      border-radius: 6px;
+      border: none;
+    }
+    .result {
+      margin-top: 10px;
+      text-align: left;
+    }
   </style>
 </head>
 <body>
 
 <div class="topbar">
-  <button onclick="showAdd()">➕</button>
   <button onclick="showSearch()">🔍</button>
+  <button onclick="showAdd()">➕</button>
 </div>
 
-<div id="addPanel" class="panel" style="display:none">
-  <h3>Add Iftar</h3>
-  <input id="district" placeholder="District">
-  <input id="upazila" placeholder="Upazila">
-  <input id="ward" placeholder="Ward">
-  <input id="masjid" placeholder="Masjid Name">
-  <input id="food" placeholder="Food Item">
-  <input id="date" type="date">
-  <input id="time" type="time">
+<div id="searchPanel" class="panel">
+  <h3>খুঁজুন</h3>
+  <input id="searchInput" placeholder="মসজিদের নাম বা ওয়ার্ড">
+  <button onclick="searchData()">Search</button>
+  <div id="results" class="result"></div>
+</div>
+
+<div id="addPanel" class="panel">
+  <h3>নতুন তথ্য যোগ করুন</h3>
+  <input id="ward" placeholder="ওয়ার্ড নম্বর">
+  <input id="masjid" placeholder="মসজিদের নাম">
   <button onclick="saveData()">Save</button>
 </div>
 
-<div id="searchPanel" class="panel" style="display:none">
-  <h3>Search</h3>
-  <input id="searchBox" placeholder="Masjid or Ward" oninput="searchData()">
-  <div id="results"></div>
-</div>
+<script>
+async function loadData() {
+  const res = await fetch('data.json');
+  return await res.json();
+}
 
-<script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-  import { getFirestore, collection, addDoc, onSnapshot, updateDoc, doc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+function showSearch() {
+  document.getElementById('searchPanel').style.display = 'block';
+  document.getElementById('addPanel').style.display = 'none';
+}
 
-  const firebaseConfig = {
-    apiKey: "PASTE_KEY",
-    authDomain: "PASTE_DOMAIN",
-    projectId: "PASTE_PROJECT",
-  };
+function showAdd() {
+  document.getElementById('addPanel').style.display = 'block';
+  document.getElementById('searchPanel').style.display = 'none';
+}
 
-  const app = initializeApp(firebaseConfig);
-  const db = getFirestore(app);
-
-  const colRef = collection(db, "iftar");
-
-  window.showAdd = ()=>{
-    addPanel.style.display='block';
-    searchPanel.style.display='none';
+async function searchData() {
+  const q = document.getElementById('searchInput').value.toLowerCase();
+  const data = await loadData();
+  const results = data.filter(d =>
+    d.masjid.toLowerCase().includes(q) || d.ward.toLowerCase().includes(q)
+  );
+  const div = document.getElementById('results');
+  if (results.length === 0) {
+    div.innerHTML = 'কোনো তথ্য পাওয়া যায়নি';
+  } else {
+    div.innerHTML = results.map(r =>
+      `<div>ওয়ার্ড: ${r.ward}<br>মসজিদ: ${r.masjid}</div><hr>`
+    ).join('');
   }
+}
 
-  window.showSearch = ()=>{
-    addPanel.style.display='none';
-    searchPanel.style.display='block';
-  }
-
-  window.saveData = async ()=>{
-    await addDoc(colRef, {
-      district: district.value,
-      upazila: upazila.value,
-      ward: ward.value,
-      masjid: masjid.value,
-      food: food.value,
-      date: date.value,
-      time: time.value,
-      trueVotes:0,
-      falseVotes:0
-    });
-    alert('Saved — everyone can see');
-  }
-
-  let allData=[];
-
-  onSnapshot(colRef, snap=>{
-    allData = snap.docs.map(d=>({id:d.id, ...d.data()}));
-  });
-
-  window.searchData = ()=>{
-    const q = searchBox.value.toLowerCase();
-    results.innerHTML='';
-    const filtered = allData.filter(x=>
-      x.masjid.toLowerCase().includes(q) || x.ward.toLowerCase().includes(q)
-    );
-
-    if(filtered.length===0){
-      results.innerHTML='No data';
-      return;
-    }
-
-    filtered.forEach(item=>{
-      const div=document.createElement('div');
-      div.className='result';
-      div.innerHTML=`
-        <b>${item.masjid}</b><br>
-        Ward: ${item.ward}<br>
-        Food: ${item.food}<br>
-        Date: ${item.date} ${item.time}<br>
-        ✅ True: ${item.trueVotes} ❌ False: ${item.falseVotes}<br>
-        <button onclick="vote('${item.id}','true')">True</button>
-        <button onclick="vote('${item.id}','false')">False</button>
-      `;
-      results.appendChild(div);
-    });
-  }
-
-  window.vote = async (id,type)=>{
-    const item = allData.find(x=>x.id===id);
-    const ref = doc(db,'iftar',id);
-    if(type==='true'){
-      await updateDoc(ref,{trueVotes:item.trueVotes+1});
-    } else {
-      await updateDoc(ref,{falseVotes:item.falseVotes+1});
-    }
-  }
+function saveData() {
+  alert('নতুন তথ্য data.json এ যোগ করুন — GitHub এ গিয়ে edit করে commit করুন');
+}
 </script>
 
 </body>
 </html>
+
