@@ -1,102 +1,147 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Khulna Masjid Food Map</title>
-  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+  <meta charset="UTF-8">
+  <title>Iftar Finder</title>
   <style>
-    body { margin: 0; font-family: Arial, sans-serif; }
-    #map { height: 100vh; }
-    .searchBox {
-      position: absolute;
-      top: 10px;
-      left: 50%;
-      transform: translateX(-50%);
-      background: white;
-      padding: 8px;
-      border-radius: 8px;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.2);
-      z-index: 1000;
+    body {
+      margin:0;
+      font-family: Arial, sans-serif;
+      background:url('Ramadan Mubarak.png') no-repeat center center fixed;
+      background-size:cover;
+      color:white;
     }
-    input, button { padding: 6px; }
+    .topbar {
+      position:fixed;
+      top:10px;
+      right:10px;
+      display:flex;
+      gap:10px;
+    }
+    button {
+      padding:10px;
+      font-size:16px;
+      cursor:pointer;
+    }
+    .panel {
+      margin-top:80px;
+      padding:20px;
+      background:rgba(0,0,0,0.6);
+      max-width:600px;
+    }
+    input {display:block; margin:5px 0; padding:8px; width:100%;}
+    .result {margin-top:10px; padding:10px; background:rgba(255,255,255,0.1);} 
   </style>
 </head>
 <body>
-  <div class="searchBox">
-    <input id="search" placeholder="Search in Khulna" />
-    <button onclick="searchPlace()">Go</button>
-  </div>
 
-  <div id="map"></div>
+<div class="topbar">
+  <button onclick="showAdd()">➕</button>
+  <button onclick="showSearch()">🔍</button>
+</div>
 
-  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
-  <script>
-    // Map centered on Khulna
-    const map = L.map('map').setView([22.8456, 89.5403], 13);
+<div id="addPanel" class="panel" style="display:none">
+  <h3>Add Iftar</h3>
+  <input id="district" placeholder="District">
+  <input id="upazila" placeholder="Upazila">
+  <input id="ward" placeholder="Ward">
+  <input id="masjid" placeholder="Masjid Name">
+  <input id="food" placeholder="Food Item">
+  <input id="date" type="date">
+  <input id="time" type="time">
+  <button onclick="saveData()">Save</button>
+</div>
 
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      maxZoom: 19
-    }).addTo(map);
+<div id="searchPanel" class="panel" style="display:none">
+  <h3>Search</h3>
+  <input id="searchBox" placeholder="Masjid or Ward" oninput="searchData()">
+  <div id="results"></div>
+</div>
 
-    // Sample masjids in Khulna (add more as needed)
-    const masjids = [
-      { name: 'Masjid Al-Falah', lat: 22.8450, lng: 89.5400 },
-      { name: 'Baitul Aman Mosque', lat: 22.8462, lng: 89.5440 },
-      { name: 'Khulna Jame Masjid', lat: 22.8430, lng: 89.5370 }
-    ];
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  import { getFirestore, collection, addDoc, onSnapshot, updateDoc, doc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
-    function getData() {
-      return JSON.parse(localStorage.getItem('masjidData') || '{}');
-    }
+  const firebaseConfig = {
+    apiKey: "PASTE_KEY",
+    authDomain: "PASTE_DOMAIN",
+    projectId: "PASTE_PROJECT",
+  };
 
-    function saveData(data) {
-      localStorage.setItem('masjidData', JSON.stringify(data));
-    }
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
 
-    // Add markers
-    masjids.forEach(m => {
-      const marker = L.marker([m.lat, m.lng]).addTo(map);
-      marker.bindPopup(`<b>${m.name}</b><br><button onclick="addInfo('${m.name}')">+ Add Info</button>`);
+  const colRef = collection(db, "iftar");
+
+  window.showAdd = ()=>{
+    addPanel.style.display='block';
+    searchPanel.style.display='none';
+  }
+
+  window.showSearch = ()=>{
+    addPanel.style.display='none';
+    searchPanel.style.display='block';
+  }
+
+  window.saveData = async ()=>{
+    await addDoc(colRef, {
+      district: district.value,
+      upazila: upazila.value,
+      ward: ward.value,
+      masjid: masjid.value,
+      food: food.value,
+      date: date.value,
+      time: time.value,
+      trueVotes:0,
+      falseVotes:0
     });
+    alert('Saved — everyone can see');
+  }
 
-    // Add info popup
-    function addInfo(name) {
-      const date = prompt('Date (e.g., 22-02-2026):');
-      const food = prompt('Food (biryani/tehari + chicken/beef):');
-      const comment = prompt('Comment:');
+  let allData=[];
 
-      if (!date || !food) return alert('Date and food required');
+  onSnapshot(colRef, snap=>{
+    allData = snap.docs.map(d=>({id:d.id, ...d.data()}));
+  });
 
-      const data = getData();
-      if (!data[name]) data[name] = [];
-      data[name].push({ date, food, comment });
-      saveData(data);
+  window.searchData = ()=>{
+    const q = searchBox.value.toLowerCase();
+    results.innerHTML='';
+    const filtered = allData.filter(x=>
+      x.masjid.toLowerCase().includes(q) || x.ward.toLowerCase().includes(q)
+    );
 
-      alert('Info saved locally!');
+    if(filtered.length===0){
+      results.innerHTML='No data';
+      return;
     }
 
-    // Search function (Khulna only)
-    function searchPlace() {
-      const query = document.getElementById('search').value + ', Khulna, Bangladesh';
-      fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}`, {
-        headers: { 
-          'Accept': 'application/json', 
-          'User-Agent': 'khulna-masjid-map-2026 (your-email@example.com)' 
-        }
-      })
-      .then(response => response.json())
-      .then(data => {
-        if (data && data.length > 0) {
-          const place = data[0];
-          map.setView([place.lat, place.lon], 16);
-        } else {
-          alert('Place not found in Khulna');
-        }
-      })
-      .catch(err => alert('Error searching place'));
+    filtered.forEach(item=>{
+      const div=document.createElement('div');
+      div.className='result';
+      div.innerHTML=`
+        <b>${item.masjid}</b><br>
+        Ward: ${item.ward}<br>
+        Food: ${item.food}<br>
+        Date: ${item.date} ${item.time}<br>
+        ✅ True: ${item.trueVotes} ❌ False: ${item.falseVotes}<br>
+        <button onclick="vote('${item.id}','true')">True</button>
+        <button onclick="vote('${item.id}','false')">False</button>
+      `;
+      results.appendChild(div);
+    });
+  }
+
+  window.vote = async (id,type)=>{
+    const item = allData.find(x=>x.id===id);
+    const ref = doc(db,'iftar',id);
+    if(type==='true'){
+      await updateDoc(ref,{trueVotes:item.trueVotes+1});
+    } else {
+      await updateDoc(ref,{falseVotes:item.falseVotes+1});
     }
-  </script>
+  }
+</script>
+
 </body>
 </html>
-
