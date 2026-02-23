@@ -1,11 +1,10 @@
 [
   {
-    "district": "Khulna",
-    "upazila": "Khulna Sadar",
-    "ward": "5",
-    "masjid": "Test Masjid",
-    "food": "Biryani",
-    "date": "2026-03-05",
-    "verified": false
+    "ward": "৫",
+    "masjid": "বায়তুল নূর জামে মসজিদ"
+  },
+  {
+    "ward": "৩",
+    "masjid": "কেন্দ্রীয় জামে মসজিদ"
   }
 ]
