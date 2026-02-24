@@ -1,209 +1,199 @@
 <!DOCTYPE html>
-<html lang="bn">
+<html>
 <head>
 <meta charset="UTF-8">
-<title>ইফতার তথ্য</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Iftar Map</title>
+
 <style>
 body {
   margin:0;
-  font-family: Arial, sans-serif;
-  background: url("https://raw.githubusercontent.com/Jubaer089/masjid-map-by-jubaer/main/Ramadan%20Mubarak.png");
-  background-size: cover;
-  background-position: center;
-  color: white;
-}
-.overlay {
-  background: rgba(0,0,0,0.6);
+  font-family: Arial;
+  background:url("Ramadan Mubarak.png") no-repeat center/cover;
   min-height:100vh;
-  padding:20px;
+  color:white;
 }
+
 .topbar {
   display:flex;
-  justify-content:flex-end;
-  gap:18px;
-  font-size:28px;
-  cursor:pointer;
+  justify-content:space-around;
+  padding:20px;
+  font-size:32px;
 }
-.box {
-  background:white;
-  color:black;
-  padding:18px;
-  border-radius:10px;
-  display:none;
-  margin:15px auto;
-  width:90%;
-  max-width:420px;
-}
-input, button {
-  width:100%;
-  padding:10px;
-  margin:6px 0;
-  font-size:16px;
-}
-.result {
-  background:white;
-  color:black;
+
+button {
+  font-size:22px;
   padding:12px;
-  margin:10px 0;
-  border-radius:6px;
+  margin:5px;
 }
+
+.panel {
+  background:rgba(0,0,0,0.7);
+  padding:20px;
+  margin:20px;
+  border-radius:12px;
+  display:none;
+}
+
+input {
+  width:100%;
+  padding:12px;
+  margin:6px 0;
+  font-size:18px;
+}
+
+.event {
+  border-bottom:1px solid #aaa;
+  padding:10px;
+}
+
 .calendar-day {
   display:inline-block;
-  width:36px;
-  height:36px;
+  width:40px;
+  height:40px;
+  line-height:40px;
   margin:3px;
   text-align:center;
-  line-height:36px;
-  border-radius:5px;
+  border-radius:6px;
   background:white;
   color:black;
-  font-size:14px;
 }
-.event {
-  background:#D90000;
+
+.red {
+  background:red;
   color:white;
-  font-weight:600;
 }
 </style>
 </head>
 
 <body>
-<div class="overlay">
-  <div class="topbar">
-    <span onclick="toggleSearch()">🔍</span>
-    <span onclick="toggleAdd()">➕</span>
-    <span onclick="toggleCalendar()">📅</span>
-  </div>
 
-  <!-- ADD FORM -->
-  <div id="addBox" class="box">
-    <h3>ইফতার যোগ করুন</h3>
-    <input id="ward" placeholder="ওয়ার্ড নম্বর">
-    <input id="masjid" placeholder="মসজিদের নাম">
-    <input id="food" placeholder="খাবারের নাম">
-    <input id="datetime" type="datetime-local">
-    <button onclick="saveData()">Save</button>
-  </div>
+<div class="topbar">
+<button onclick="toggle('search')">🔍</button>
+<button onclick="toggle('add')">➕</button>
+<button onclick="toggle('calendar')">📅</button>
+</div>
 
-  <!-- SEARCH -->
-  <div id="searchBox" class="box">
-    <input id="searchInput" placeholder="ওয়ার্ড/মসজিদ দিয়ে সার্চ">
-    <button onclick="searchData()">Search</button>
-    <div id="results"></div>
-  </div>
+<div id="search" class="panel">
+<input id="searchBox" placeholder="Search masjid or ward">
+<button onclick="search()">Search</button>
+<div id="results"></div>
+</div>
 
-  <!-- CALENDAR -->
-  <div id="calendarBox" class="box"></div>
+<div id="add" class="panel">
+<input id="ward" placeholder="Ward number">
+<input id="masjid" placeholder="Masjid name">
+<input id="food" placeholder="Food item">
+<input id="datetime" type="datetime-local">
+<button onclick="save()">Save</button>
+</div>
+
+<div id="calendar" class="panel">
+<div id="calendarGrid"></div>
 </div>
 
 <script>
+const API="https://api.jsonstorage.net/v1/json/34f53f08-8af0-4bc8-bca9-4cff6c1d78e4/681f130b-d263-42c4-9b40-96859d7feadd";
 
-// 🌐 Your JSONStorage API endpoint
-const API_LINK = "https://api.jsonstorage.net/v1/json/34f53f08-8af0-4bc8-bca9-4cff6c1d78e4/681f130b-d263-42c4-9b40-96859d7feadd";
+let data=[];
 
-function toggleAdd(){
-  document.getElementById("addBox").style.display="block";
-  document.getElementById("searchBox").style.display="none";
-  document.getElementById("calendarBox").style.display="none";
+function toggle(id){
+  document.querySelectorAll(".panel").forEach(p=>p.style.display="none");
+  document.getElementById(id).style.display="block";
 }
 
-function toggleSearch(){
-  document.getElementById("searchBox").style.display="block";
-  document.getElementById("addBox").style.display="none";
-  document.getElementById("calendarBox").style.display="none";
-}
-
-function toggleCalendar(){
-  document.getElementById("calendarBox").style.display="block";
-  document.getElementById("addBox").style.display="none";
-  document.getElementById("searchBox").style.display="none";
+async function load(){
+  try{
+    const res=await fetch(API);
+    data=await res.json();
+    if(!Array.isArray(data)) data=[];
+  }catch{ data=[] }
   renderCalendar();
 }
+load();
 
-// 📌 Get data from JSON cloud
-async function getData(){
-  let res = await fetch(API_LINK);
-  let data = await res.json();
-  return data || [];
-}
+async function save(){
+  const event={
+    ward:ward.value,
+    masjid:masjid.value,
+    food:food.value,
+    datetime:datetime.value,
+    verified:false
+  };
+  data.push(event);
 
-// 📌 Save updated data back to cloud
-async function setData(data){
-  await fetch(API_LINK, {
+  await fetch(API,{
     method:"PUT",
-    headers: {"Content-Type":"application/json"},
-    body: JSON.stringify(data)
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify(data)
   });
+
+  alert("Saved!");
+  load();
 }
 
-// 📌 Save new iftar
-async function saveData(){
-  if(!ward.value || !masjid.value || !food.value || !datetime.value){
-    alert("সব তথ্য দিন!");
+function search(){
+  const q=searchBox.value.toLowerCase();
+  results.innerHTML="";
+
+  const matches=data.filter(e =>
+    e.masjid.toLowerCase().includes(q) ||
+    e.ward.toLowerCase().includes(q)
+  );
+
+  if(matches.length===0){
+    results.innerHTML="No data";
     return;
   }
-  let data = await getData();
-  data.push({
-    ward: ward.value,
-    masjid: masjid.value,
-    food: food.value,
-    datetime: datetime.value,
-    verified:false
+
+  matches.forEach(e=>{
+    const div=document.createElement("div");
+    div.className="event";
+
+    const btn=document.createElement("button");
+    btn.textContent=e.verified ? "Verified ✅" : "Verify";
+    btn.onclick=()=>verify(e);
+
+    div.innerHTML=`
+      <b>${e.masjid}</b><br>
+      Ward: ${e.ward}<br>
+      Food: ${e.food}<br>
+      ${new Date(e.datetime).toLocaleString()}
+    `;
+    div.appendChild(btn);
+    results.appendChild(div);
   });
-  await setData(data);
-  alert("Saved!");
 }
 
-// 📌 Search logic
-async function searchData(){
-  let q = searchInput.value.toLowerCase();
-  let data = await getData();
-  results.innerHTML = "";
-  let found = false;
-  data.forEach((d,i) => {
-    if(d.masjid.toLowerCase().includes(q) || d.ward.toLowerCase().includes(q)){
-      found = true;
-      let div = document.createElement("div");
-      div.className = "result";
-      div.innerHTML = `
-        <b>${d.masjid}</b><br>
-        Ward: ${d.ward}<br>
-        Food: ${d.food}<br>
-        Time: ${d.datetime}<br>
-        Verified: ${d.verified}
-        <button onclick="verify(${i})">Toggle Verify</button>
-      `;
-      results.appendChild(div);
-    }
+async function verify(event){
+  event.verified=true;
+  await fetch(API,{
+    method:"PUT",
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify(data)
   });
-  if(!found) results.innerHTML="No data found";
+  search();
 }
 
-// 📌 Toggle verify
-async function verify(i){
-  let data = await getData();
-  data[i].verified = !data[i].verified;
-  await setData(data);
-  searchData();
-}
+function renderCalendar(){
+  calendarGrid.innerHTML="";
+  const days=31;
 
-// 📌 Calendar
-async function renderCalendar(){
-  let data = await getData();
-  calendarBox.innerHTML = "";
-  for(let d=1; d<=31; d++){
-    let div = document.createElement("div");
+  for(let i=1;i<=days;i++){
+    const div=document.createElement("div");
     div.className="calendar-day";
-    div.textContent=d;
-    let hasEvent = data.some(e => {
+
+    const has=data.some(e=>{
       if(!e.datetime) return false;
-      return new Date(e.datetime).getDate() === d;
+      return new Date(e.datetime).getDate()===i;
     });
-    if(hasEvent) div.classList.add("event");
-    calendarBox.appendChild(div);
+
+    if(has) div.classList.add("red");
+
+    div.textContent=i;
+    calendarGrid.appendChild(div);
   }
 }
-
 </script>
 
 </body>
