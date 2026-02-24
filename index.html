@@ -1,146 +1,193 @@
 <!DOCTYPE html>
-<html lang="bn">
+<html>
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ইফতার তথ্য</title>
-  <style>
-    body {
-      margin: 0;
-      font-family: Arial, sans-serif;
-      background: url('Ramadan Mubarak.png') no-repeat center center fixed;
-      background-size: cover;
-      color: white;
-      text-align: center;
-    }
-    .topbar {
-      position: fixed;
-      top: 10px;
-      right: 10px;
-      display: flex;
-      gap: 10px;
-    }
-    button {
-      padding: 10px 14px;
-      border: none;
-      border-radius: 8px;
-      cursor: pointer;
-      font-size: 16px;
-    }
-    .panel {
-      background: rgba(0,0,0,0.7);
-      padding: 20px;
-      border-radius: 12px;
-      margin: 80px auto;
-      width: 90%;
-      max-width: 420px;
-      display: none;
-    }
-    input {
-      width: 100%;
-      padding: 8px;
-      margin: 6px 0;
-      border-radius: 6px;
-      border: none;
-    }
-    .calendar {
-      display: grid;
-      grid-template-columns: repeat(7, 1fr);
-      gap: 5px;
-      margin-top: 10px;
-    }
-    .day {
-      padding: 8px;
-      background: rgba(255,255,255,0.2);
-      border-radius: 6px;
-    }
-    .red {
-      background: red;
-    }
-  </style>
+<meta charset="UTF-8">
+<title>Iftar Map</title>
+
+<style>
+body {
+  margin:0;
+  font-family: Arial, sans-serif;
+  background-image:url("https://raw.githubusercontent.com/Jubaer089/masjid-map-by-jubaer/main/Ramadan%20Mubarak.png");
+  background-size:cover;
+  background-position:center;
+  color:white;
+}
+
+.overlay {
+  background: rgba(0,0,0,0.6);
+  min-height:100vh;
+  padding:20px;
+}
+
+.topbar {
+  display:flex;
+  justify-content:flex-end;
+  gap:20px;
+  font-size:28px;
+  cursor:pointer;
+}
+
+.box {
+  background:white;
+  color:black;
+  padding:20px;
+  border-radius:10px;
+  max-width:400px;
+  margin:20px auto;
+  display:none;
+}
+
+input, button {
+  width:100%;
+  padding:10px;
+  margin:5px 0;
+}
+
+.result {
+  background:white;
+  color:black;
+  padding:10px;
+  margin:10px;
+  border-radius:8px;
+}
+
+.calendar-day {
+  display:inline-block;
+  width:40px;
+  height:40px;
+  margin:3px;
+  text-align:center;
+  line-height:40px;
+  border-radius:5px;
+  background:white;
+  color:black;
+}
+.event {
+  background:red;
+  color:white;
+}
+</style>
 </head>
+
 <body>
+<div class="overlay">
 
 <div class="topbar">
-  <button onclick="showSearch()">🔍</button>
-  <button onclick="showAdd()">➕</button>
-  <button onclick="showCalendar()">📅</button>
+<span onclick="toggleSearch()">🔍</span>
+<span onclick="toggleAdd()">➕</span>
+<span onclick="toggleCalendar()">📅</span>
 </div>
 
-<div id="searchPanel" class="panel">
-  <h3>খুঁজুন</h3>
-  <input id="searchInput" placeholder="মসজিদ বা ওয়ার্ড">
-  <button onclick="searchData()">Search</button>
-  <div id="results"></div>
+<!-- ADD BOX -->
+<div id="addBox" class="box">
+<h3>Add Iftar</h3>
+<input id="ward" placeholder="Ward number / ওয়ার্ড">
+<input id="masjid" placeholder="Masjid name / মসজিদের নাম">
+<input id="food" placeholder="Food item">
+<input id="datetime" type="datetime-local">
+<button onclick="saveData()">Save</button>
 </div>
 
-<div id="addPanel" class="panel">
-  <h3>ইফতার যোগ করুন</h3>
-  <input id="ward" placeholder="ওয়ার্ড নম্বর">
-  <input id="masjid" placeholder="মসজিদের নাম">
-  <input id="food" placeholder="খাবারের নাম">
-  <input id="datetime" type="datetime-local">
-  <button onclick="saveInfo()">Save</button>
-  <p>⚠️ Save করার পর data.json এ manual যোগ করতে হবে (GitHub limitation)</p>
+<!-- SEARCH BOX -->
+<div id="searchBox" class="box">
+<input id="searchInput" placeholder="Search masjid or ward">
+<button onclick="searchData()">Search</button>
+<div id="results"></div>
 </div>
 
-<div id="calendarPanel" class="panel">
-  <h3>ক্যালেন্ডার</h3>
-  <div id="calendar" class="calendar"></div>
+<!-- CALENDAR -->
+<div id="calendarBox" class="box"></div>
+
 </div>
 
 <script>
-async function loadData() {
-  const res = await fetch('data.json');
-  return await res.json();
+function toggleAdd(){
+ document.getElementById("addBox").style.display="block";
+ document.getElementById("searchBox").style.display="none";
+ document.getElementById("calendarBox").style.display="none";
+}
+function toggleSearch(){
+ document.getElementById("searchBox").style.display="block";
+ document.getElementById("addBox").style.display="none";
+ document.getElementById("calendarBox").style.display="none";
+}
+function toggleCalendar(){
+ document.getElementById("calendarBox").style.display="block";
+ document.getElementById("addBox").style.display="none";
+ document.getElementById("searchBox").style.display="none";
+ renderCalendar();
 }
 
-function hideAll() {
-  document.getElementById('searchPanel').style.display='none';
-  document.getElementById('addPanel').style.display='none';
-  document.getElementById('calendarPanel').style.display='none';
+function getData(){
+ return JSON.parse(localStorage.getItem("iftarData")||"[]");
+}
+function setData(data){
+ localStorage.setItem("iftarData", JSON.stringify(data));
 }
 
-function showSearch(){ hideAll(); document.getElementById('searchPanel').style.display='block'; }
-function showAdd(){ hideAll(); document.getElementById('addPanel').style.display='block'; }
-function showCalendar(){ hideAll(); document.getElementById('calendarPanel').style.display='block'; renderCalendar(); }
-
-async function searchData(){
-  const q=document.getElementById('searchInput').value.toLowerCase();
-  const data=await loadData();
-  const results=data.filter(d=>
-    d.masjid.toLowerCase().includes(q)||d.ward.toLowerCase().includes(q)
-  );
-  const div=document.getElementById('results');
-  if(results.length===0){ div.innerHTML='কোনো তথ্য নেই'; return; }
-  div.innerHTML=results.map(r=>
-    `<div>ওয়ার্ড: ${r.ward}<br>মসজিদ: ${r.masjid}<br>খাবার: ${r.food}<br>সময়: ${r.datetime}</div><hr>`
-  ).join('');
+function saveData(){
+ let data=getData();
+ data.push({
+  ward:ward.value,
+  masjid:masjid.value,
+  food:food.value,
+  datetime:datetime.value,
+  verified:false
+ });
+ setData(data);
+ alert("Saved!");
 }
 
-function saveInfo(){
-  const info={
-    ward:document.getElementById('ward').value,
-    masjid:document.getElementById('masjid').value,
-    food:document.getElementById('food').value,
-    datetime:document.getElementById('datetime').value
-  };
-  alert('এই তথ্য copy করে data.json এ যোগ করুন:
-'+JSON.stringify(info,null,2));
-}
+function searchData(){
+ let q=searchInput.value.toLowerCase();
+ let data=getData();
+ results.innerHTML="";
+ let found=false;
 
-async function renderCalendar(){
-  const data=await loadData();
-  const dates=data.map(d=>d.datetime?.split('T')[0]);
-  const cal=document.getElementById('calendar');
-  cal.innerHTML='';
-  for(let i=1;i<=30;i++){
-    const day=document.createElement('div');
-    day.className='day';
-    day.textContent=i;
-    if(dates.includes(`2026-03-${String(i).padStart(2,'0')}`)) day.classList.add('red');
-    cal.appendChild(day);
+ data.forEach((d,i)=>{
+  if(d.masjid.toLowerCase().includes(q)||d.ward.toLowerCase().includes(q)){
+   found=true;
+   let div=document.createElement("div");
+   div.className="result";
+   div.innerHTML=`
+   <b>${d.masjid}</b><br>
+   Ward: ${d.ward}<br>
+   Food: ${d.food}<br>
+   Time: ${d.datetime}<br>
+   Verified: ${d.verified}
+   <button onclick="verify(${i})">Toggle Verify</button>
+   `;
+   results.appendChild(div);
   }
+ });
+
+ if(!found) results.innerHTML="No data";
+}
+
+function verify(i){
+ let data=getData();
+ data[i].verified=!data[i].verified;
+ setData(data);
+ searchData();
+}
+
+function renderCalendar(){
+ let data=getData();
+ calendarBox.innerHTML="";
+ for(let d=1; d<=31; d++){
+  let div=document.createElement("div");
+  div.className="calendar-day";
+  div.textContent=d;
+
+  let hasEvent=data.some(e=>{
+   if(!e.datetime) return false;
+   return new Date(e.datetime).getDate()===d;
+  });
+
+  if(hasEvent) div.classList.add("event");
+  calendarBox.appendChild(div);
+ }
 }
 </script>
 
